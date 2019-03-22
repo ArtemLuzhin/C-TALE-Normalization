@@ -15,3 +15,5 @@ coeffitient - float that will be used for multiplicating around ROI (see origina
 output_cool_file - name of new cool file that will be generated.
 
 # IMPORTANT
+Script generate new file with normalized matrix, but delete raw matrix. So for parsing cool file you should use balance=False.
+We fix this in future.
