@@ -10,7 +10,7 @@ chr, ROI_start, ROI_end - Genomics coordinates in bp of Region of interest. <chr
 
 resolution -resolution of C-TALE HiC map in bp.
 
-coeffitient - float that will be used for multiplicating around ROI (see original manuscript).
+coefficient - float that will be used for multiplicating around ROI (see original manuscript).
 
 output_cool_file - name of new cool file that will be generated.
 
