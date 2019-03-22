@@ -6,7 +6,7 @@ python2 C-TALE-normalize.py cool_file chr ROI_start ROI_end resolution coeffitie
 
 cool_file - Cool file with C-TALE HiC map.
 
-chr ROI_start ROI_end - Genomics coordinates in bp of Region of interest. <chr> can be number or letter if you generate cool using hiclib.
+chr, ROI_start, ROI_end - Genomics coordinates in bp of Region of interest. <chr> can be number or letter if you generate cool using hiclib.
 
 resolution -resolution of C-TALE HiC map in bp.
 
