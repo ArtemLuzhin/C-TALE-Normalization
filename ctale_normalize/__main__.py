@@ -43,7 +43,7 @@ def main():
             raise ValueError("""Two regions are on the same chromosome, this is
                                 not yet supported""")
         #load raw matrix
-        mtx=C.matrix(balance=False, sparse=True).fetch(chrom)
+        mtx = C.matrix(balance=False, sparse=True).fetch(chrom).tocsr()
         logging.info('Loaded matrix for %s' % chrom)
         #Perform normalization
         logging.info('Normalization...')
