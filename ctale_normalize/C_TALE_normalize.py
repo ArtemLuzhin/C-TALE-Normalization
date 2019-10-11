@@ -4,6 +4,7 @@ import numpy as np
 import cooler
 import scipy.stats
 import sys
+from natsort import natsorted
 
 #functions
 
@@ -104,7 +105,14 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution,
             break
     return(out)
 
-def Save_coolfile(coolfile, mtx, chrom, output_coolfile, genome):
+def get_pixels(mtx):
+    mtx_upper_diag = np.triu(mtx, k=0)
+    smtx=scipy.sparse.csr_matrix(mtx_upper_diag)
+    sc=smtx.tocoo(copy=False)
+    pixels=pd.DataFrame({'bin1_id': sc.row, 'bin2_id': sc.col, 'count': sc.data})
+    return pixels
+
+def Save_coolfile(coolfile, chroms, mtxs, output_coolfile):
     """Function change raw HiC matrix of cool file to user selected (normalized) and write it to new file.
     Because function rewrite data of original cool, later you should load it with balance=False flag.
     coolfile - original HiC file
@@ -112,11 +120,10 @@ def Save_coolfile(coolfile, mtx, chrom, output_coolfile, genome):
     output_coolfile - name of new cool file
     genome - genome assembly id"""
     #create bins
-    bins=coolfile.bins().fetch(chrom)[:]
+    bins = pd.concat([coolfile.bins().fetch(chrom)[:] for chrom in chroms])
     #Create sparse matrix
-    mtx_upper_diag = np.triu(mtx, k=0)
-    smtx=scipy.sparse.csr_matrix(mtx_upper_diag)
-    sc=smtx.tocoo(copy=False)
-    smtx_pixels=pd.DataFrame({'bin1_id': sc.row, 'bin2_id': sc.col, 'count': sc.data})
-    cooler.io.create(output_coolfile,bins,smtx_pixels,assembly=genome,dtype={'count':float})
+    pixels = pd.concat([get_pixels(mtx) for mtx in mtxs])
+    cooler.io.create(output_coolfile, bins, pixels,
+                     assembly=coolfile.info[u'genome-assembly'],
+                     dtype={'count':float})
     return('Saved')
