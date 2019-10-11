@@ -110,6 +110,9 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution,
         if var<tolerance:
             print('Variance < ',tolerance)
             break
+    factor = out[start_bin:end_bin+1, start_bin:end_bin+1].sum().sum()/mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum().sum()
+    out *= factor
+    out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
     return out
 
 def get_pixels(mtx, zero_id=0):
