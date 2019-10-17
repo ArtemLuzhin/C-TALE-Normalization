@@ -34,7 +34,7 @@ def main():
 
     C=cooler.Cooler(args.cooler) #load coolfile
     logging.info('Loaded cool')
-    regions = args.coordinates .split(';')
+    regions = args.coordinates.split(';')
     chroms = []
     mtxs = []
     for region in natsorted(regions):
