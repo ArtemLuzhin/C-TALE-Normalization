@@ -56,19 +56,21 @@ def multiplicate(mtx, ROI_start, ROI_end, resolution, mult=1.54):
                                                             start_bin:end_bin+1]
     return new_mtx
 
-def get_cov_var(mtx, startbin, endbin):
+def get_cov_var(mtx, start_bin, end_bin):
     cov1 = np.asarray(mtx.sum(axis=0)).ravel()
     cov2 = np.asarray(mtx.sum(axis=1)).ravel()
     
-    cov1[:startbin] = 1
-    cov1[endbin+1:] = 1
-    cov1[endbin+1:] = 1
+    cov1mn = cov1[start_bin:end_bin+1].mean()
+    cov2mn = cov2[start_bin:end_bin+1].mean()
     
-    cov2[:startbin] = 1
-    cov2[endbin+1:] = 1
+    cov1[:start_bin] = cov1mn
+    cov1[end_bin+1:] = cov1mn
     
-    cov = stats.gmean([cov1, cov2], axis=0)
-    var = np.std(cov[startbin:endbin+1])
+    cov2[:start_bin] = cov2mn
+    cov2[end_bin+1:] = cov2mn
+    
+    cov = cov1+cov2#stats.gmean([cov1, cov2], axis=0)
+    var = np.var(cov)
     
     return cov1, cov2, var
 
@@ -102,17 +104,15 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
     
     out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
                    resolution=resolution, mult=mult)
-    
     cov1, cov2, var = get_cov_var(out, start_bin, end_bin)
-    print('Original var:', var)
     for i in range(steps):
         out, var = CTALE_norm(out, ROI_start, ROI_end, resolution)
-        print('Iteration %s: var: %s' % (i+1, var))
+        print('Iteration %s: var: %s' % (i, var))
         if var < target_var:
             print('Variance below %s' % target_var)
-#            factor = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()/mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
-#            out *= factor
-#            out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
+            factor = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()/mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
+            out *= factor
+            out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
             return out
     raise ValueError('Too many interation without convergence')
 
