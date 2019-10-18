@@ -89,6 +89,7 @@ def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
     start_bin = ROI_start//resolution
     end_bin = ROI_end//resolution
     cov, var = get_cov_var(mtx, start_bin, end_bin)
+    cov = (cov-1)*0.8 + 1
     mtx = mtx.multiply(1/cov).multiply(1/cov[np.newaxis].T).tocsr()
     cov, var = get_cov_var(mtx, start_bin, end_bin)
     return mtx, var
