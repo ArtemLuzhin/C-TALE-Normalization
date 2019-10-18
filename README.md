@@ -31,5 +31,5 @@ Additional arguments you can add:
 
 
 # IMPORTANT
-Script generate new file with normalized matrix, but delete raw matrix. So for parsing new cool file you should use balance=False.
-We fix this in future.
+The tool generates a new .cool file with normalized matrix written directly without weights. To load data from the new cool file you should use balance=False.
+We might fix this in future.
