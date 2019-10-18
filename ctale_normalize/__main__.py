@@ -15,8 +15,8 @@ def main():
     parser.add_argument("coordinates", type=str,
                         help="""Coordinates of the captured region in UCSC
                         format. If multiple regions (one per chromosome!) were
-                        captured, write comma-separated coordinates for each
-                        of them""")
+                        captured, write semicolon-separated coordinates for
+                        each of them""")
     parser.add_argument("--mult_factor", type=float, default=1.54,
                         required=False,
                         help="Factor for correction of zone 3")
@@ -29,8 +29,8 @@ def main():
 
     args = parser.parse_args()
 
-#    logging.basicConfig(format='%(message)s',
-#                        level=getattr(logging, args.logLevel))
+    logging.basicConfig(format='%(message)s',
+                        level=getattr(logging, 'INFO'))
 
     C=cooler.Cooler(args.cooler) #load coolfile
     logging.info('Loaded cool')
@@ -47,8 +47,9 @@ def main():
         logging.info('Loaded matrix for %s' % chrom)
         #Perform normalization
         logging.info('Normalization...')
-        mtxs.append(CTALE_norm_iterative(mtx, start, end, C.binsize, steps=args.IC_steps,
-                               mult=args.mult_factor))
+        mtxs.append(CTALE_norm_iterative(mtx, start, end, C.binsize,
+                                         steps=args.IC_steps,
+                                         mult=args.mult_factor))
         chroms.append(chrom)
     logging.info('Save as '+ args.output)
     #Save_coolfile

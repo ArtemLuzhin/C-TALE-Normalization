@@ -6,6 +6,7 @@ import scipy.stats
 from scipy import sparse, stats
 import sys
 from natsort import natsorted
+import logging
 
 #functions
 
@@ -59,19 +60,19 @@ def multiplicate(mtx, ROI_start, ROI_end, resolution, mult=1.54):
 def get_cov_var(mtx, start_bin, end_bin):
     cov1 = np.asarray(mtx.sum(axis=0)).ravel()
     cov2 = np.asarray(mtx.sum(axis=1)).ravel()
-    
+
     cov1mn = cov1[start_bin:end_bin+1].mean()
     cov2mn = cov2[start_bin:end_bin+1].mean()
-    
+
     cov1[:start_bin] = cov1mn
     cov1[end_bin+1:] = cov1mn
-    
+
     cov2[:start_bin] = cov2mn
     cov2[end_bin+1:] = cov2mn
-    
+
     cov = cov1+cov2#stats.gmean([cov1, cov2], axis=0)
-    var = np.var(cov)
-    
+    var = np.var(cov[start_bin:end_bin+1])
+
     return cov1, cov2, var
 
 def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
@@ -85,34 +86,34 @@ def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
     end_bin = ROI_end//resolution
     cov1, cov2, var = get_cov_var(mtx, start_bin, end_bin)
     mtx = mtx.multiply(1/cov1).multiply(1/cov2[np.newaxis].T).tocsr()
+    _, _, var = get_cov_var(mtx, start_bin, end_bin)
     return mtx, var
 
 def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
-                         target_var=10**-6, steps=20):
+                         steps=20, tolerance=10**-6):
     """Main function that perform normalization until variance>tolerance
     mtx- matrix of individual chromosome/region +/- distance
     ROI_start - first coordinate of C-TALE region(bp)
     ROI_end - last coordinate of C-TALE region(bp)
     resolution - C-TALE map resolution(bp)
-    func - function for calculating mean, can be numpy.mean,numpy.median and etc. Default: scipy.stats.gmean
     mult-coefficient of multiplication around ROI, default=1.54
     steps-number of iterations, by default=20
     tolerance-when variance<tolerance algorithm stops.
     returns normalized matrix"""
-    start_bin = ROI_start//resolution
-    end_bin = ROI_end//resolution
-    
+
     out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
                    resolution=resolution, mult=mult)
-    cov1, cov2, var = get_cov_var(out, start_bin, end_bin)
     for i in range(steps):
         out, var = CTALE_norm(out, ROI_start, ROI_end, resolution)
-        print('Iteration %s: var: %s' % (i, var))
-        if var < target_var:
-            print('Variance below %s' % target_var)
-            factor = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()/mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
-            out *= factor
-            out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
+        logging.info('Iteration %s: var: %s' % (i, var))
+        if var < tolerance:
+            logging.info('Variance below %s' % tolerance)
+            # Ensure zones 2 and 3 are scaled identically
+#            newsum = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()
+#            oldsum = mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
+#            factor = newsum/oldsum
+#            out *= factor
+#            out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
             return out
     raise ValueError('Too many interation without convergence')
 
