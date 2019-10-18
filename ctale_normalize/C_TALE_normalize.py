@@ -61,19 +61,23 @@ def get_cov_var(mtx, start_bin, end_bin):
     cov1 = np.asarray(mtx.sum(axis=0)).ravel()
     cov2 = np.asarray(mtx.sum(axis=1)).ravel()
 
-    cov1mn = cov1[start_bin:end_bin+1].mean()
-    cov2mn = cov2[start_bin:end_bin+1].mean()
+    cov1[start_bin:end_bin+1] /= cov1[start_bin:end_bin+1].mean()
+    cov2[start_bin:end_bin+1] /= cov2[start_bin:end_bin+1].mean()
 
-    cov1[:start_bin] = cov1mn
-    cov1[end_bin+1:] = cov1mn
+#    cov1mn = cov1[start_bin:end_bin+1].mean()
+#    cov2mn = cov2[start_bin:end_bin+1].mean()
 
-    cov2[:start_bin] = cov2mn
-    cov2[end_bin+1:] = cov2mn
+    cov1[:start_bin] = 1 #cov1mn
+    cov1[end_bin+1:] = 1 #cov1mn
+
+    cov2[:start_bin] = 1 #cov2mn
+    cov2[end_bin+1:] = 1 #cov2mn
 
     cov = cov1+cov2#stats.gmean([cov1, cov2], axis=0)
+    cov /= cov.mean()
     var = np.var(cov[start_bin:end_bin+1])
 
-    return cov1, cov2, var
+    return cov, var
 
 def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
     """Single iteration of CTALE balancing
@@ -84,13 +88,13 @@ def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
     returns normalized matrix and variance at this iteration"""
     start_bin = ROI_start//resolution
     end_bin = ROI_end//resolution
-    cov1, cov2, var = get_cov_var(mtx, start_bin, end_bin)
-    mtx = mtx.multiply(1/cov1).multiply(1/cov2[np.newaxis].T).tocsr()
-    _, _, var = get_cov_var(mtx, start_bin, end_bin)
+    cov, var = get_cov_var(mtx, start_bin, end_bin)
+    mtx = mtx.multiply(1/cov).multiply(1/cov[np.newaxis].T).tocsr()
+    cov, var = get_cov_var(mtx, start_bin, end_bin)
     return mtx, var
 
 def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
-                         steps=20, tolerance=10**-6):
+                         steps=20, tolerance=10**-5):
     """Main function that perform normalization until variance>tolerance
     mtx- matrix of individual chromosome/region +/- distance
     ROI_start - first coordinate of C-TALE region(bp)
@@ -100,7 +104,8 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
     steps-number of iterations, by default=20
     tolerance-when variance<tolerance algorithm stops.
     returns normalized matrix"""
-
+    start_bin = ROI_start//resolution
+    end_bin = ROI_end//resolution
     out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
                    resolution=resolution, mult=mult)
     for i in range(steps):
@@ -108,6 +113,7 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
         logging.info('Iteration %s: var: %s' % (i, var))
         if var < tolerance:
             logging.info('Variance below %s' % tolerance)
+            out /= out.sum(axis=1)[start_bin:end_bin+1].mean()
             # Ensure zones 2 and 3 are scaled identically
 #            newsum = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()
 #            oldsum = mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
