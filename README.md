@@ -24,7 +24,9 @@ output_cool_file - name of new cool file that will be generated.
 Additional arguments you can add:
 
 --mult_factor - float that will be used for multiplicating around ROI (see original manuscript, default 1.54).
+
 --IC_steps - maximum number of iterative correction steps that can be applied (default 20)
+
 --tolerance - float for required variance in coverage required for iterative correction convergence (default 10^-5)
 
 
