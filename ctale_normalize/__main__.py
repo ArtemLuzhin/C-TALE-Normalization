@@ -15,8 +15,9 @@ def main():
     parser.add_argument("coordinates", type=str,
                         help="""Coordinates of the captured region in UCSC
                         format. If multiple regions (one per chromosome!) were
-                        captured, write semicolon-separated coordinates for
-                        each of them""")
+                        captured, semicolon-separated coordinates for each of
+                        them can be used. For example,
+                        chr1:150,000-151,000;chr2:320000-420000""")
     parser.add_argument("--mult_factor", type=float, default=1.54,
                         required=False,
                         help="Factor for correction of zone 3")
@@ -24,6 +25,9 @@ def main():
                         required=False,
                         help="""Number of steps for iterative correction in
                                 zone 2""")
+    parser.add_argument("--tolerance", type=float, default=10**-5,
+                        required=False,
+                        help="""Target variance for iterative correction""")
     parser.add_argument("output", type=str,
                         help="Where to save the output")
 
@@ -49,9 +53,10 @@ def main():
         logging.info('Normalization...')
         mtxs.append(CTALE_norm_iterative(mtx, start, end, C.binsize,
                                          steps=args.IC_steps,
-                                         mult=args.mult_factor))
+                                         mult=args.mult_factor,
+                                         tolerance=args.tolerance))
         chroms.append(chrom)
-    logging.info('Save as '+ args.output)
+    logging.info('Saving as '+ args.output)
     #Save_coolfile
     Save_coolfile(C, chroms, mtxs, args.output)
     logging.info('Finished!')

@@ -31,7 +31,7 @@ setup(
       long_description_content_type='text/markdown',
       project_urls={'Source':'https://github.com/ArtemLuzhin/C-TALE-Normalization',
                     'Issues':'https://github.com/ArtemLuzhin/C-TALE-Normalization/issues'},
-      author='Artem Luzhin',
+      author='Artem Luzhin <artyom.luzhin@gmail.com>, Ilya Flyamer <flyamer@gmail.com>',
       author_email='artyom.luzhin@gmail.com',
       classifiers=[
         "Programming Language :: Python",
