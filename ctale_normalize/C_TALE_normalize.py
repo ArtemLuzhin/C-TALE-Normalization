@@ -2,6 +2,7 @@ from __future__ import division
 import pandas as pd
 import numpy as np
 import cooler
+from cooler import util
 import scipy.stats
 from scipy import sparse, stats
 import sys
@@ -30,11 +31,11 @@ def CTALE_norm_multiplicate(mtx, ROI_start, ROI_end, resolution,
     for i in range(start_bin,end_bin):
         #left=new_mtx[i,i:]
         #up=new_mtx[:i,i]
-        normalized[i,i:]=new_mtx[i,i:]/(np.sum(new_mtx[i,i:])+np.sum(new_mtx[:i,i])) #left
-        normalized[:i,i]=new_mtx[:i,i]/(np.sum(new_mtx[:i,i])+np.sum(new_mtx[i,i:])) #up
+        normalized[i,i:]=new_mtx[i,i:]/(np.nansum(new_mtx[i,i:])+np.nansum(new_mtx[:i,i])) #left
+        normalized[:i,i]=new_mtx[:i,i]/(np.nansum(new_mtx[:i,i])+np.nansum(new_mtx[i,i:])) #up
     for i in range(start_bin,end_bin):
         for j in range(i+1,end_bin):
-            normalized[i,j]=new_mtx[i,j]/func([np.sum(new_mtx[i,:]),np.sum(new_mtx[:,j])])
+            normalized[i,j]=new_mtx[i,j]/func([np.nansum(new_mtx[i,:]),np.nansum(new_mtx[:,j])])
 
     i_lower = np.tril_indices(normalized.shape[0], -1) #creates symmetric matrix
     normalized[i_lower] = normalized.T[i_lower]
@@ -57,71 +58,87 @@ def multiplicate(mtx, ROI_start, ROI_end, resolution, mult=1.54):
                                                             start_bin:end_bin+1]
     return new_mtx
 
-def get_cov_var(mtx, start_bin, end_bin):
+def get_cov(mtx, start_bin, end_bin, norm=True):
+    mtx[mtx!=mtx] = 0
     cov1 = np.asarray(mtx.sum(axis=0)).ravel()
     cov2 = np.asarray(mtx.sum(axis=1)).ravel()
 
-    cov1[start_bin:end_bin+1] /= cov1[start_bin:end_bin+1].mean()
-    cov2[start_bin:end_bin+1] /= cov2[start_bin:end_bin+1].mean()
+    if norm:
+        cov1[start_bin:end_bin+1] /= np.nanmean(cov1[start_bin:end_bin+1])
+        cov2[start_bin:end_bin+1] /= np.nanmean(cov2[start_bin:end_bin+1])
 
-#    cov1mn = cov1[start_bin:end_bin+1].mean()
-#    cov2mn = cov2[start_bin:end_bin+1].mean()
+    cov1[:start_bin] = 1
+    cov1[end_bin+1:] = 1
 
-    cov1[:start_bin] = 1 #cov1mn
-    cov1[end_bin+1:] = 1 #cov1mn
+    cov2[:start_bin] = 1
+    cov2[end_bin+1:] = 1
 
-    cov2[:start_bin] = 1 #cov2mn
-    cov2[end_bin+1:] = 1 #cov2mn
+    cov = cov1+cov2
+    if norm:
+        cov /= np.nanmean(cov)
 
-    cov = cov1+cov2#stats.gmean([cov1, cov2], axis=0)
-    cov /= cov.mean()
-    var = np.var(cov[start_bin:end_bin+1])
+    return cov
 
-    return cov, var
+#def CTALE_norm(mtx, ROI_start, ROI_end, resolution, bad_bins):
+#    """Single iteration of CTALE balancing
+#    mtx - matrix of individual chromosome/region +/- distance
+#    ROI_start - first coordinate of C-TALE region(bp)
+#    ROI_end - last coordinate of C-TALE region(bp)
+#    resolution - C-TALE map resolution(bp)
+#    returns normalized matrix and variance at this iteration"""
+#    start_bin = ROI_start//resolution
+#    end_bin = ROI_end//resolution
+#    cov = get_cov(mtx, start_bin, end_bin, bad_bins)
+#    cov = (cov-1)*0.8 + 1
+#    return cov
 
-def CTALE_norm(mtx, ROI_start, ROI_end, resolution):
-    """Single iteration of CTALE balancing
+def mad_max(coverage, cutoff=5):
+    logNzMarg = np.log(coverage[coverage > 0])
+    med_logNzMarg = np.median(logNzMarg)
+    dev_logNzMarg = util.mad(logNzMarg)
+    cutoff = np.exp(med_logNzMarg - cutoff * dev_logNzMarg)
+    return np.where(coverage < cutoff)
+
+def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
+                         steps=20, tolerance=10**-5, mad_cutoff=5):
+    """Main function that perform normalization until variance>tolerance
     mtx - matrix of individual chromosome/region +/- distance
     ROI_start - first coordinate of C-TALE region(bp)
     ROI_end - last coordinate of C-TALE region(bp)
     resolution - C-TALE map resolution(bp)
-    returns normalized matrix and variance at this iteration"""
-    start_bin = ROI_start//resolution
-    end_bin = ROI_end//resolution
-    cov, var = get_cov_var(mtx, start_bin, end_bin)
-    cov = (cov-1)*0.8 + 1
-    mtx = mtx.multiply(1/cov).multiply(1/cov[np.newaxis].T).tocsr()
-    cov, var = get_cov_var(mtx, start_bin, end_bin)
-    return mtx, var
-
-def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
-                         steps=20, tolerance=10**-5):
-    """Main function that perform normalization until variance>tolerance
-    mtx- matrix of individual chromosome/region +/- distance
-    ROI_start - first coordinate of C-TALE region(bp)
-    ROI_end - last coordinate of C-TALE region(bp)
-    resolution - C-TALE map resolution(bp)
-    mult-coefficient of multiplication around ROI, default=1.54
-    steps-number of iterations, by default=20
-    tolerance-when variance<tolerance algorithm stops.
+    mult - coefficient of multiplication around ROI, default=1.54
+    steps - number of iterations, by default=20
+    tolerance - when variance<tolerance algorithm stops.
+    mad_cutoff - MAD filter value
     returns normalized matrix"""
     start_bin = ROI_start//resolution
     end_bin = ROI_end//resolution
     out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
                    resolution=resolution, mult=mult)
+    cov = get_cov(out, start_bin, end_bin)
+    bad_bins = mad_max(cov[start_bin:end_bin+1], mad_cutoff)+start_bin
+    weights = np.ones_like(cov)
+    weights[bad_bins] = np.nan
+
     for i in range(steps):
-        out, var = CTALE_norm(out, ROI_start, ROI_end, resolution)
+        cov = get_cov(out.multiply(weights).multiply(weights[np.newaxis].T).tocsr(),
+                               start_bin, end_bin)
+        cov[bad_bins] = np.nan
+        var = np.var(cov[start_bin:end_bin+1][~(bad_bins-start_bin)])
         logging.info('Iteration %s: var: %s' % (i, var))
-        if var < tolerance:
+        if var >= tolerance:
+            cov = (cov-1)*0.8 + 1
+            weights = weights/cov
+            print(weights[start_bin:end_bin+1])
+            continue
+        else:
             logging.info('Variance below %s' % tolerance)
-            out /= out.sum(axis=1)[start_bin:end_bin+1].mean()
-            # Ensure zones 2 and 3 are scaled identically
-#            newsum = out[start_bin:end_bin+1, start_bin:end_bin+1].sum()
-#            oldsum = mtx[start_bin:end_bin+1, start_bin:end_bin+1].sum()
-#            factor = newsum/oldsum
-#            out *= factor
-#            out[start_bin:end_bin+1, start_bin:end_bin+1] /= factor
+            out = out.multiply(weights).multiply(weights[np.newaxis].T).tocsr()
+            cov = get_cov(out, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
+            out /= cov.mean()
+            cov = get_cov(out, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
             return out
+
     raise ValueError('Too many interation without convergence')
 
 

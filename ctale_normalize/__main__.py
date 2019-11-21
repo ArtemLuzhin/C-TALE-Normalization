@@ -21,13 +21,17 @@ def main():
     parser.add_argument("--mult_factor", type=float, default=1.54,
                         required=False,
                         help="Factor for correction of zone 3")
-    parser.add_argument("--IC_steps", type=int, default=20,
+    parser.add_argument("--IC_steps", type=int, default=50,
                         required=False,
                         help="""Number of steps for iterative correction in
                                 zone 2""")
     parser.add_argument("--tolerance", type=float, default=10**-5,
                         required=False,
                         help="""Target variance for iterative correction""")
+    parser.add_argument("--MAD_max", type=float, default=5,
+                    required=False,
+                    help="""Median absolute deviation filter value to remove
+                            very low/high covered bins""")
     parser.add_argument("output", type=str,
                         help="Where to save the output")
 
