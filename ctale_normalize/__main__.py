@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from ctale_normalize import CTALE_norm_iterative, Save_coolfile
+from ctale_normalize import CTALE_norm_iterative, save_weight
 import argparse
 import cooler
 import logging
@@ -28,12 +28,12 @@ def main():
     parser.add_argument("--tolerance", type=float, default=10**-5,
                         required=False,
                         help="""Target variance for iterative correction""")
-    parser.add_argument("--MAD_max", type=float, default=5,
+    parser.add_argument("--MAD_max", type=float, default=4,
                     required=False,
                     help="""Median absolute deviation filter value to remove
                             very low/high covered bins""")
-    parser.add_argument("output", type=str,
-                        help="Where to save the output")
+#    parser.add_argument("output", type=str,
+#                        help="Where to save the output")
 
     args = parser.parse_args()
 
@@ -44,7 +44,8 @@ def main():
     logging.info('Loaded cool')
     regions = args.coordinates.split(';')
     chroms = []
-    mtxs = []
+    weights = []
+    bal_info = []
     for region in natsorted(regions):
         chrom, start, end = cooler.util.parse_region(region)
         if chrom in chroms:
@@ -55,13 +56,19 @@ def main():
         logging.info('Loaded matrix for %s' % chrom)
         #Perform normalization
         logging.info('Normalization...')
-        mtxs.append(CTALE_norm_iterative(mtx, start, end, C.binsize,
-                                         steps=args.IC_steps,
-                                         mult=args.mult_factor,
-                                         tolerance=args.tolerance,
-                                         mad_cutoff=args.MAD_max))
+        weight, converged = CTALE_norm_iterative(mtx, start, end,
+                                                        C.binsize,
+                                                        steps=args.IC_steps,
+                                                        mult=args.mult_factor,
+                                                        tolerance=args.tolerance,
+                                                        mad_cutoff=args.MAD_max)
+        info = {'tol':args.tolerance,
+                'mad_max':args.MAD_max,
+                'converged':converged}
         chroms.append(chrom)
-    logging.info('Saving as '+ args.output)
+        weights.append(weight)
+        bal_info.append(info)
+    save_weight(args.cooler, chroms, weights, bal_info)
+#    logging.info('Saving as '+ args.output)
     #Save_coolfile
-    Save_coolfile(C, chroms, mtxs, args.output)
-    logging.info('Finished!')
+#    logging.info('Finished!')

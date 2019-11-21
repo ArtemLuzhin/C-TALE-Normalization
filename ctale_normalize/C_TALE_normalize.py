@@ -8,6 +8,7 @@ from scipy import sparse, stats
 import sys
 from natsort import natsorted
 import logging
+import h5py
 
 #functions
 
@@ -110,7 +111,8 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
     steps - number of iterations, by default=20
     tolerance - when variance<tolerance algorithm stops.
     mad_cutoff - MAD filter value
-    returns normalized matrix"""
+
+    returns final weihgts, and whether the balancing converged"""
     start_bin = ROI_start//resolution
     end_bin = ROI_end//resolution
     out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
@@ -129,41 +131,45 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
         if var >= tolerance:
             cov = (cov-1)*0.8 + 1
             weights = weights/cov
-            print(weights[start_bin:end_bin+1])
             continue
         else:
             logging.info('Variance below %s' % tolerance)
-            out = out.multiply(weights).multiply(weights[np.newaxis].T).tocsr()
             cov = get_cov(out, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
-            out /= cov.mean()
-            cov = get_cov(out, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
-            return out
+            weights /= cov.mean()*2#**0.5
+            weights = weights**0.5
+#            out = out.multiply(weights).multiply(weights[np.newaxis].T).tocsr()
+            return weights, True
+    logging.warn('Too many iterations without convergence')
+    return weights, False
 
-    raise ValueError('Too many interation without convergence')
 
+#def get_pixels(mtx, zero_id=0):
+#    mtx_upper_diag = sparse.triu(mtx, k=0)
+#    sc = mtx_upper_diag.tocoo(copy=False)
+#    pixels = pd.DataFrame({'bin1_id': sc.row+zero_id,
+#                           'bin2_id': sc.col+zero_id,
+#                           'count': sc.data})
+#    return pixels
 
-def get_pixels(mtx, zero_id=0):
-    mtx_upper_diag = sparse.triu(mtx, k=0)
-    sc = mtx_upper_diag.tocoo(copy=False)
-    pixels = pd.DataFrame({'bin1_id': sc.row+zero_id,
-                           'bin2_id': sc.col+zero_id,
-                           'count': sc.data})
-    return pixels
+def save_weight(coolfile, chroms, weights, bal_info={}):
+    """
+    coolfile - File to add weights too
+    chroms - List of chromosomes to modify
+    weights - List of weight vectors to write to corresponding chromosomes
+    bal_info - List of dicts to add as attributes of the weight column"""
+    cool_path, group_path = util.parse_cooler_uri(coolfile)
+    c = cooler.Cooler(coolfile)
+    with h5py.File(cool_path, 'r+') as h5:
+        grp = h5[group_path]
+        # add the bias column to the file
+        h5opts = dict(compression='gzip', compression_opts=6)
+        allweights = np.asarray([np.nan]*grp['bins']['chrom'].shape[0])
+        if 'weight' not in grp['bins'].keys():
+            grp['bins'].create_dataset('weight', data=allweights, **h5opts)
+        for chrom, weight, info in zip(chroms, weights, bal_info):
+            s, e = c.extent(chrom)
+            grp['bins']['weight'][s:e] = weight
+            grp['bins']['weight'].attrs.update(info)
 
-def Save_coolfile(coolfile, chroms, mtxs, output_coolfile):
-    """Function change raw HiC matrix of cool file to user selected (normalized) and write it to new file.
-    Because function rewrite data of original cool, later you should load it with balance=False flag.
-    coolfile - original HiC file
-    mtx - matrix to write
-    output_coolfile - name of new cool file
-    genome - genome assembly id"""
-    #create bins
-    bins = [coolfile.bins().fetch(chrom)[:] for chrom in chroms]
-    bins = pd.concat(bins).reset_index(drop=True)
-    zerobins = dict(bins.groupby('chrom').apply(lambda x: x.index.min()))
-    #Create sparse matrix
-    pixels = pd.concat([get_pixels(mtx, zerobins[chrom]) for mtx, chrom in zip(mtxs, chroms)])
-    cooler.create_cooler(output_coolfile, bins, pixels,
-                     assembly=coolfile.info[u'genome-assembly'],
-                     dtypes={'count':float})
+#        grp['bins']['weight'][grp['bins']['chrom']==chrom]=weights
     return
