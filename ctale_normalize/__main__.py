@@ -58,7 +58,8 @@ def main():
         mtxs.append(CTALE_norm_iterative(mtx, start, end, C.binsize,
                                          steps=args.IC_steps,
                                          mult=args.mult_factor,
-                                         tolerance=args.tolerance))
+                                         tolerance=args.tolerance,
+                                         mad_cutoff=args.MAD_max))
         chroms.append(chrom)
     logging.info('Saving as '+ args.output)
     #Save_coolfile
