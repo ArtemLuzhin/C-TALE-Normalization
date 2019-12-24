@@ -19,7 +19,6 @@ ROI_coordinates - Genomics coordinates in bp for Region of Interest in UCSC form
 Chromosome name should match the chromosome name in the cool_file.
 For example, chr1:150,000-151,000;chr2:320000-420000 - if capturing multiple regions (not more than 1 per chromosome!), separate them with a semicolon.
 
-output_cool_file - name of new cool file that will be generated.
 
 Additional arguments you can add:
 
