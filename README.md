@@ -30,7 +30,7 @@ Additional arguments you can add:
 --tolerance - float for required variance in coverage required for iterative correction convergence (default 10^-5)
 
 ## To cite, please use:
-`Golov AK, Ulianov SV, Luzhin AV, Kalabusheva EP, Kantidze OL, Flyamer IM,
+*Golov AK, Ulianov SV, Luzhin AV, Kalabusheva EP, Kantidze OL, Flyamer IM,
 Razin SV, Gavrilov AA. C-TALE, a new cost-effective method for targeted
 enrichment of Hi-C/3C-seq libraries. Methods. 2019 Jun 26. pii:
-S1046-2023(18)30478-X. doi: 10.1016/j.ymeth.2019.06.022.`
+S1046-2023(18)30478-X. doi: 10.1016/j.ymeth.2019.06.022.*
