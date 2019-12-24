@@ -28,8 +28,3 @@ Additional arguments you can add:
 --IC_steps - maximum number of iterative correction steps that can be applied (default 20)
 
 --tolerance - float for required variance in coverage required for iterative correction convergence (default 10^-5)
-
-
-# IMPORTANT
-The tool generates a new .cool file with normalized matrix written directly without weights. To load data from the new cool file you should use balance=False.
-We might fix this in future.
