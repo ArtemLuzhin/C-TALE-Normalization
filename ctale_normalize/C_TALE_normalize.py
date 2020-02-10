@@ -135,7 +135,7 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
         cov = get_cov(mtx.multiply(weights).multiply(weights[np.newaxis].T).tocsr(),
                                start_bin, end_bin)
         cov[bad_bins] = np.nan
-        var = np.var(cov[start_bin:end_bin+1][~(bad_bins-start_bin)])
+        var = np.nanvar(cov[start_bin:end_bin+1])
         logging.info('Iteration %s: var: %s' % (i, var))
         if var < tolerance:
             logging.info('Variance below %s' % tolerance)
