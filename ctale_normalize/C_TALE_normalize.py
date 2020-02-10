@@ -61,8 +61,8 @@ def multiplicate(mtx, ROI_start, ROI_end, resolution, mult=1.54):
 
 def get_cov(mtx, start_bin, end_bin, norm=True):
     mtx[mtx!=mtx] = 0
-    cov1 = np.asarray(mtx.sum(axis=0)).ravel()
-    cov2 = np.asarray(mtx.sum(axis=1)).ravel()
+    cov1 = np.asarray(mtx.sum(axis=0), dtype=float).ravel()
+    cov2 = np.asarray(mtx.sum(axis=1), dtype=float).ravel()
 
     if norm:
         cov1[start_bin:end_bin+1] /= np.nanmean(cov1[start_bin:end_bin+1])
@@ -101,7 +101,7 @@ def mad_max(coverage, cutoff=5):
     return np.where(coverage < cutoff)
 
 def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
-                         steps=20, tolerance=10**-5, mad_cutoff=5):
+                         steps=20, tolerance=10**-5, mad_cutoff=5, ignore_diags=2):
     """Main function that perform normalization until variance>tolerance
     mtx - matrix of individual chromosome/region +/- distance
     ROI_start - first coordinate of C-TALE region(bp)
@@ -111,34 +111,45 @@ def CTALE_norm_iterative(mtx, ROI_start, ROI_end, resolution, mult=1.54,
     steps - number of iterations, by default=20
     tolerance - when variance<tolerance algorithm stops.
     mad_cutoff - MAD filter value
+    ignore_diags - how many diagonals to ignore (set to 0 or negative to use all)
 
-    returns final weihgts, and whether the balancing converged"""
+    returns final weights, and whether the balancing converged"""
     start_bin = ROI_start//resolution
     end_bin = ROI_end//resolution
-    out = multiplicate(mtx=mtx, ROI_start=ROI_start, ROI_end=ROI_end,
-                   resolution=resolution, mult=mult)
-    cov = get_cov(out, start_bin, end_bin)
+
+    if ignore_diags > 0:
+        for diag in range(ignore_diags):
+            mtx.setdiag(0, diag)
+            if diag != 0:
+                mtx.setdiag(0, -diag)
+
+    cov = get_cov(mtx, start_bin, end_bin)
     bad_bins = mad_max(cov[start_bin:end_bin+1], mad_cutoff)+start_bin
     weights = np.ones_like(cov)
+    if len(bad_bins)>0.5*(end_bin-start_bin): # If more than half of bins are filtered, don't even try and set weights to 1
+        logging.warn('Too few good bins')
+        return weights, False
     weights[bad_bins] = np.nan
 
     for i in range(steps):
-        cov = get_cov(out.multiply(weights).multiply(weights[np.newaxis].T).tocsr(),
+        cov = get_cov(mtx.multiply(weights).multiply(weights[np.newaxis].T).tocsr(),
                                start_bin, end_bin)
         cov[bad_bins] = np.nan
         var = np.var(cov[start_bin:end_bin+1][~(bad_bins-start_bin)])
         logging.info('Iteration %s: var: %s' % (i, var))
-        if var >= tolerance:
+        if var < tolerance:
+            logging.info('Variance below %s' % tolerance)
+            cov = get_cov(mtx, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
+            weights /= cov.mean()*2#**0.5
+            weights = weights**0.5
+            weights[:start_bin] *= mult
+            weights[end_bin+1:] *= mult
+#            mtx = mtx.multiply(weights).multiply(weights[np.newaxis].T).tocsr()
+            return weights, True
+        else:
             cov = (cov-1)*0.8 + 1
             weights = weights/cov
             continue
-        else:
-            logging.info('Variance below %s' % tolerance)
-            cov = get_cov(out, start_bin, end_bin, norm=False)[start_bin:end_bin+1]
-            weights /= cov.mean()*2#**0.5
-            weights = weights**0.5
-#            out = out.multiply(weights).multiply(weights[np.newaxis].T).tocsr()
-            return weights, True
     logging.warn('Too many iterations without convergence')
     return weights, False
 

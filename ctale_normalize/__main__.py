@@ -32,6 +32,9 @@ def main():
                     required=False,
                     help="""Median absolute deviation filter value to remove
                             very low/high covered bins""")
+    parser.add_argument("--ignore_diags", type=int, default=2,
+                    required=False,
+                    help="""How many diagonals to ignore for iterative correction""")
 #    parser.add_argument("output", type=str,
 #                        help="Where to save the output")
 
@@ -61,7 +64,8 @@ def main():
                                                         steps=args.IC_steps,
                                                         mult=args.mult_factor,
                                                         tolerance=args.tolerance,
-                                                        mad_cutoff=args.MAD_max)
+                                                        mad_cutoff=args.MAD_max,
+                                                        ignore_diags=args.ignore_diags)
         info = {'tol':args.tolerance,
                 'mad_max':args.MAD_max,
                 'converged':converged}
